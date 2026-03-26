@@ -47,32 +47,6 @@ Dark Batman-theme desktop with floating sticky notes — transparent backgrounds
 
 ---
 
-## Build from source
-
-**Requirements:** Node.js 18+, macOS
-
-```bash
-# Clone
-git clone https://github.com/YOUR_USERNAME/freestickies.git
-cd freestickies
-
-# Install Electron
-npm install
-
-# Run in dev mode
-npm start
-```
-
-### Build the distributable DMG
-
-```bash
-bash build-dmg.sh
-```
-
-Creates `FreeStickies.dmg` — ready to install or share.
-
----
-
 ## Project structure
 
 | File | What it does |
