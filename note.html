@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sticky Note</title>
+<style>
+/* ── Reset ─────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:transparent;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif}
+
+/* ── CSS Variables — dark default ──────────────────────────────── */
+:root{
+  --chrome-top:  rgba(255,255,255,.055);
+  --chrome-fmt:  rgba(255,255,255,.032);
+  --chrome-brd:  rgba(255,255,255,.07);
+  --btn:         rgba(255,255,255,.45);
+  --btn-hov:     rgba(255,255,255,.09);
+  --btn-act:     rgba(255,255,255,.17);
+  --text:        #CDD6F4;
+  --ph:          rgba(255,255,255,.2);
+  --sep:         rgba(255,255,255,.09);
+  --inp-bg:      rgba(255,255,255,.07);
+  --inp-brd:     rgba(255,255,255,.13);
+  --inp-clr:     rgba(255,255,255,.65);
+  --set-bg:      rgba(0,0,0,.38);
+  --set-brd:     rgba(255,255,255,.07);
+  --lbl:         rgba(255,255,255,.38);
+  --trk:         rgba(255,255,255,.14);
+  --thumb:       rgba(255,255,255,.6);
+  --scroll:      rgba(255,255,255,.11);
+  --cb-ring:     rgba(255,255,255,.3);
+  --cb-ring-hov: rgba(255,255,255,.7);
+  --prog-trk:    rgba(255,255,255,.1);
+  --status-bg:   rgba(255,255,255,.03);
+}
+.L{ /* light-theme overrides */
+  --chrome-top: rgba(0,0,0,.08);
+  --chrome-fmt: rgba(0,0,0,.05);
+  --chrome-brd: rgba(0,0,0,.09);
+  --btn:        rgba(0,0,0,.5);
+  --btn-hov:    rgba(0,0,0,.09);
+  --btn-act:    rgba(0,0,0,.17);
+  --text:       #1a1a2e;
+  --ph:         rgba(0,0,0,.22);
+  --sep:        rgba(0,0,0,.12);
+  --inp-bg:     rgba(255,255,255,.6);
+  --inp-brd:    rgba(0,0,0,.18);
+  --inp-clr:    #333;
+  --set-bg:     rgba(255,255,255,.9);
+  --set-brd:    rgba(0,0,0,.09);
+  --lbl:        rgba(0,0,0,.4);
+  --trk:        rgba(0,0,0,.15);
+  --thumb:      rgba(0,0,0,.5);
+  --scroll:     rgba(0,0,0,.18);
+  --cb-ring:    rgba(0,0,0,.3);
+  --cb-ring-hov:rgba(0,0,0,.7);
+  --prog-trk:   rgba(0,0,0,.1);
+  --status-bg:  rgba(0,0,0,.04);
+}
+
+/* ── Shell ──────────────────────────────────────────────────────── */
+#shell{
+  width:100vw;height:100vh;
+  display:flex;flex-direction:column;
+  border-radius:12px;
+  background:#1E1E2E;
+  box-shadow:0 28px 80px rgba(0,0,0,.72),0 8px 24px rgba(0,0,0,.5),
+             inset 0 1px 0 rgba(255,255,255,.08);
+  overflow:hidden;
+  transition:border-radius .2s,background .28s;
+  position:relative;   /* so #lockOverlay positions inside it */
+}
+
+/* ── Chrome — auto-hides on blur ────────────────────────────────── */
+#chrome{
+  flex-shrink:0;overflow:hidden;
+  max-height:56px;opacity:1;
+  transition:max-height .22s cubic-bezier(.4,0,.2,1),opacity .18s ease;
+  position:relative;z-index:2;  /* always above the lock overlay */
+}
+#chrome.hidden{max-height:0;opacity:0;pointer-events:none}
+
+/* ── Title bar ──────────────────────────────────────────────────── */
+#titleBar{
+  -webkit-app-region:drag;
+  display:flex;align-items:center;gap:2px;
+  padding:5px 7px;min-height:28px;
+  background:var(--chrome-top);
+  border-bottom:1px solid var(--chrome-brd);
+}
+#titleBar *{-webkit-app-region:no-drag}
+
+#noteTitle{
+  flex:1;font-size:11px;font-weight:600;letter-spacing:.01em;
+  color:var(--btn);background:none;border:none;outline:none;
+  cursor:text;-webkit-user-select:text;user-select:text;
+  padding:2px 4px;border-radius:4px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+#noteTitle::placeholder{color:var(--ph)}
+#noteTitle:focus{background:var(--btn-hov);color:var(--text)}
+
+.tbb{
+  background:none;border:none;cursor:pointer;
+  padding:3px 5px;border-radius:5px;font-size:13px;line-height:1;
+  color:var(--btn);display:flex;align-items:center;justify-content:center;
+  transition:background .14s,color .14s;flex-shrink:0;
+}
+.tbb:hover{background:var(--btn-hov);color:var(--text)}
+#btnClose{font-size:18px;font-weight:300}
+#btnClose:hover{background:rgba(255,80,60,.22)!important;color:#ff6b6b!important}
+#btnLock.locked{color:#f9a825!important}
+
+/* ── Format bar — horizontal scroll, never wraps ────────────────── */
+#formatBar{
+  display:flex;align-items:center;flex-wrap:nowrap;
+  overflow-x:auto;overflow-y:hidden;
+  padding:3px 6px;gap:1px;
+  background:var(--chrome-fmt);
+  border-bottom:1px solid var(--chrome-brd);
+  scrollbar-width:none;           /* Firefox */
+}
+#formatBar::-webkit-scrollbar{display:none} /* Chromium */
+
+.fb{
+  background:none;border:none;cursor:pointer;
+  padding:3px 6px;border-radius:4px;
+  font-size:12px;color:var(--btn);
+  min-width:24px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s,color .12s;
+  -webkit-user-select:none;user-select:none;
+}
+.fb:hover {background:var(--btn-hov);color:var(--text)}
+.fb.active{background:var(--btn-act);color:var(--text)}
+#btnBold     {font-weight:700}
+#btnItalic   {font-style:italic}
+#btnUnderline{text-decoration:underline}
+#btnStrike   {text-decoration:line-through}
+
+.fsep{width:1px;height:14px;background:var(--sep);margin:0 2px;flex-shrink:0}
+
+.fsel{
+  border:1px solid var(--inp-brd);border-radius:4px;
+  padding:2px 4px;font-size:11px;background:var(--inp-bg);
+  color:var(--inp-clr);cursor:pointer;outline:none;
+  max-width:84px;flex-shrink:0;
+}
+.fsel option{background:#2a2a3a;color:#eee}
+
+#fontSizeBox{
+  width:32px;text-align:center;flex-shrink:0;
+  border:1px solid var(--inp-brd);border-radius:4px;
+  padding:2px 2px;font-size:11px;
+  background:var(--inp-bg);color:var(--inp-clr);
+  outline:none;-webkit-user-select:text;user-select:text;
+}
+.colorbtn{
+  width:18px;height:18px;border-radius:50%;
+  border:2px solid var(--sep);cursor:pointer;
+  flex-shrink:0;padding:0;background:#CDD6F4;
+  position:relative;overflow:hidden;
+}
+.colorbtn input[type=color]{
+  position:absolute;inset:0;width:100%;height:100%;
+  opacity:0;cursor:pointer;
+}
+
+/* ── Progress bar (always visible when checkboxes exist) ─────────── */
+#progress{
+  display:none;align-items:center;gap:8px;
+  padding:5px 14px 2px;flex-shrink:0;
+}
+#progress.show{display:flex}
+#progTrack{
+  flex:1;height:3px;border-radius:2px;
+  background:var(--prog-trk);overflow:hidden;
+}
+#progFill{
+  height:100%;border-radius:2px;
+  background:rgba(255,255,255,.7);
+  transition:width .3s ease,background .4s;width:0%;
+}
+#progText{
+  font-size:10px;color:var(--lbl);
+  white-space:nowrap;font-variant-numeric:tabular-nums;
+  flex-shrink:0;
+}
+
+/* ── Content ────────────────────────────────────────────────────── */
+#content{
+  flex:1;padding:11px 14px;
+  overflow-y:auto;overflow-x:hidden;
+  outline:none;font-size:14px;line-height:1.7;
+  color:var(--text);word-wrap:break-word;word-break:break-word;
+  -webkit-user-select:text;user-select:text;
+}
+#content:empty::before{
+  content:'Start typing…';color:var(--ph);pointer-events:none
+}
+#content ul{padding-left:20px;list-style-type:disc}
+#content ol{padding-left:20px;list-style-type:decimal}
+#content li{margin:2px 0}
+#content b,#content strong{font-weight:700}
+#content i,#content em   {font-style:italic}
+#content u               {text-decoration:underline}
+#content s,#content strike{text-decoration:line-through}
+#content::-webkit-scrollbar{width:3px}
+#content::-webkit-scrollbar-track{background:transparent}
+#content::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:2px}
+
+/* ── Three-state circular checkboxes ────────────────────────────── */
+/* States: 0 = to-do (empty ring)  1 = in-progress (white dot)  2 = done (white ✓) */
+#content .cb{
+  display:flex;align-items:flex-start;gap:10px;
+  margin:5px 0;line-height:1.6;
+}
+/* The clickable circle indicator */
+.cbi{
+  width:17px;height:17px;border-radius:50%;
+  border:2px solid var(--cb-ring);background:transparent;
+  cursor:pointer;flex-shrink:0;margin-top:3px;
+  display:inline-block;position:relative;
+  transition:background .18s,border-color .18s,box-shadow .15s;
+  -webkit-user-select:none;user-select:none;
+}
+.cbi:hover{
+  border-color:var(--cb-ring-hov);
+  box-shadow:0 0 0 3px rgba(255,255,255,.1);
+}
+.L .cbi:hover{
+  box-shadow:0 0 0 3px rgba(0,0,0,.08);
+}
+
+/* ── State 1: In-progress — bright white ring + white center dot ─── */
+.cb[data-state="1"] .cbi{
+  border-color:rgba(255,255,255,.8);
+  box-shadow:0 0 0 3px rgba(255,255,255,.08);
+}
+.cb[data-state="1"] .cbi::after{
+  content:'';
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,.82);
+}
+.cb[data-state="1"] .cbi:hover{
+  border-color:#fff;
+  box-shadow:0 0 0 3px rgba(255,255,255,.14);
+}
+.cb[data-state="1"] .cbt{ opacity:.78 }
+
+/* Light-theme state 1 overrides */
+.L .cb[data-state="1"] .cbi{ border-color:rgba(0,0,0,.75); box-shadow:0 0 0 3px rgba(0,0,0,.07); }
+.L .cb[data-state="1"] .cbi::after{ background:rgba(0,0,0,.75); }
+.L .cb[data-state="1"] .cbi:hover{ border-color:#000; }
+
+/* ── State 2: Done — solid white circle + dark checkmark ─────── */
+.cb[data-state="2"] .cbi{
+  background:rgba(255,255,255,.88);
+  border-color:rgba(255,255,255,.88);
+  box-shadow:0 0 0 3px rgba(255,255,255,.1);
+  /* Dark checkmark for white background */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpolyline points='1.5,4 3.8,6.5 8.5,1.5' stroke='%231E1E2E' stroke-width='1.7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:center;background-size:10px 8px;
+}
+.cb[data-state="2"] .cbi:hover{
+  background:rgba(255,255,255,1);border-color:#fff;
+}
+/* Light-theme state 2: dark filled circle + white checkmark */
+.L .cb[data-state="2"] .cbi{
+  background:rgba(15,15,20,.85);border-color:rgba(15,15,20,.85);
+  box-shadow:0 0 0 3px rgba(0,0,0,.08);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpolyline points='1.5,4 3.8,6.5 8.5,1.5' stroke='%23ffffff' stroke-width='1.7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:center;background-size:10px 8px;
+}
+.L .cb[data-state="2"] .cbi:hover{ background:rgba(0,0,0,1);border-color:#000; }
+.cb[data-state="2"] .cbt{
+  text-decoration:line-through;opacity:.35;
+}
+
+/* ── Shared text span ─────────────────────────────────────── */
+.cbt{flex:1;outline:none;min-width:0;transition:opacity .22s,text-decoration .22s}
+
+/* ── Status bar (word count) ────────────────────────────────────── */
+#statusBar{
+  display:flex;justify-content:flex-end;align-items:center;
+  padding:2px 12px;
+  background:var(--status-bg);
+  border-top:1px solid var(--chrome-brd);
+  min-height:18px;flex-shrink:0;
+  opacity:0;height:0;overflow:hidden;
+  transition:opacity .2s,height .18s;
+}
+body.focused #statusBar{opacity:1;height:18px}
+
+#wordCount{font-size:10px;color:var(--lbl)}
+
+/* ── Settings panel ─────────────────────────────────────────────── */
+#settingsPanel{
+  display:none;flex-direction:column;gap:9px;
+  padding:10px 12px;
+  background:var(--set-bg);
+  border-top:1px solid var(--set-brd);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  flex-shrink:0;
+}
+#settingsPanel.open{display:flex}
+
+.sr{display:flex;align-items:center;gap:8px;font-size:11px}
+.sl{min-width:78px;font-size:11px;color:var(--lbl);font-weight:500;flex-shrink:0}
+
+.sw{
+  width:26px;height:18px;border-radius:4px;
+  border:1.5px solid var(--sep);cursor:pointer;
+  position:relative;overflow:hidden;flex-shrink:0;
+}
+.sw input[type=color]{
+  position:absolute;inset:-4px;
+  width:calc(100% + 8px);height:calc(100% + 8px);
+  opacity:0;cursor:pointer;
+}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:76px;height:3px;border-radius:2px;
+  background:var(--trk);outline:none;cursor:pointer;flex-shrink:0;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:12px;height:12px;border-radius:50%;
+  background:var(--thumb);cursor:pointer;
+  transition:transform .1s;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.rv{font-size:11px;color:var(--lbl);min-width:32px;flex-shrink:0}
+.sc{accent-color:auto;width:14px;height:14px;cursor:pointer}
+
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{
+  width:18px;height:18px;border-radius:50%;
+  border:2px solid transparent;cursor:pointer;
+  transition:transform .13s,border-color .13s;flex-shrink:0;
+}
+.chip:hover{transform:scale(1.22)}
+.chip.on{border-color:rgba(255,255,255,.75)}
+.L .chip.on{border-color:rgba(0,0,0,.55)}
+
+/* Settings action buttons */
+.set-btn{
+  background:var(--btn-hov);border:1px solid var(--sep);
+  color:var(--btn);cursor:pointer;
+  padding:4px 10px;border-radius:5px;font-size:11px;
+  transition:background .14s,color .14s;white-space:nowrap;
+}
+.set-btn:hover{background:var(--btn-act);color:var(--text)}
+.set-btn.success{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.9)}
+
+/* Lock overlay — z-index 1 so #chrome (z-index 2) stays clickable */
+#lockOverlay{
+  display:none;position:absolute;inset:0;z-index:1;
+  cursor:not-allowed;
+}
+#lockOverlay.on{display:block}
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <!-- ── Chrome (hides on blur) ──────────────────────────────── -->
+  <div id="chrome">
+
+    <!-- Title bar -->
+    <div id="titleBar">
+      <input id="noteTitle" type="text" placeholder="Untitled note" spellcheck="false" maxlength="60">
+      <button class="tbb" id="btnNew"      title="New Note (⌘N)">＋</button>
+      <button class="tbb" id="btnCollapse" title="Collapse / Expand">
+        <svg id="collapseIcon" width="11" height="11" viewBox="0 0 11 11">
+          <polyline id="collapseArrow" points="1,3 5.5,8 10,3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="tbb" id="btnLock"     title="Lock / Unlock note">
+        <svg id="lockIcon" width="11" height="13" viewBox="0 0 11 13">
+          <rect x="1.5" y="5.5" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+          <path d="M3 5.5V4a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+          <circle cx="5.5" cy="9" r="1" fill="currentColor"/>
+        </svg>
+      </button>
+      <button class="tbb" id="btnSettings" title="Settings">⚙</button>
+      <button class="tbb" id="btnClose"    title="Delete Note">×</button>
+    </div>
+
+    <!-- Format bar — horizontally scrollable, never wraps -->
+    <div id="formatBar">
+      <select class="fsel" id="fontFamily" title="Font">
+        <option value="Georgia, serif">Georgia</option>
+        <option value="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif">System</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="'Helvetica Neue', Helvetica, sans-serif">Helvetica</option>
+        <option value="'Times New Roman', serif">Times</option>
+        <option value="'Courier New', monospace">Courier</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+        <option value="Trebuchet MS, sans-serif">Trebuchet</option>
+        <option value="Palatino, serif">Palatino</option>
+        <option value="'Gill Sans', sans-serif">Gill Sans</option>
+      </select>
+      <input id="fontSizeBox" type="number" value="14" min="8" max="96" title="Font size (px)">
+      <div class="fsep"></div>
+
+      <button class="fb" id="btnBold"      title="Bold (⌘B)">B</button>
+      <button class="fb" id="btnItalic"    title="Italic (⌘I)">I</button>
+      <button class="fb" id="btnUnderline" title="Underline (⌘U)">U</button>
+      <button class="fb" id="btnStrike"    title="Strikethrough">S</button>
+      <div class="fsep"></div>
+
+      <button class="fb" id="btnAlignL" title="Left">
+        <svg width="13" height="10" viewBox="0 0 13 10"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="0" y="8" width="13" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fb" id="btnAlignC" title="Center">
+        <svg width="13" height="10" viewBox="0 0 13 10"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="2" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="0" y="8" width="13" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fb" id="btnAlignR" title="Right">
+        <svg width="13" height="10" viewBox="0 0 13 10"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="0" y="8" width="13" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <div class="fsep"></div>
+
+      <button class="fb" id="btnBullet"   title="Bullet list">
+        <svg width="13" height="12" viewBox="0 0 13 12"><circle cx="1.5" cy="2" r="1.5" fill="currentColor"/><rect x="4" y="1" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="6" r="1.5" fill="currentColor"/><rect x="4" y="5" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="10" r="1.5" fill="currentColor"/><rect x="4" y="9" width="9" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fb" id="btnNumbered" title="Numbered list">
+        <svg width="13" height="12" viewBox="0 0 13 12"><text x="0" y="4" font-size="4.5" fill="currentColor" font-family="monospace">1.</text><rect x="5" y="1" width="8" height="2" rx="1" fill="currentColor"/><text x="0" y="8.5" font-size="4.5" fill="currentColor" font-family="monospace">2.</text><rect x="5" y="5.5" width="8" height="2" rx="1" fill="currentColor"/><text x="0" y="13" font-size="4.5" fill="currentColor" font-family="monospace">3.</text><rect x="5" y="10" width="8" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fb" id="btnIndent"   title="Indent (Tab)">⇥</button>
+      <button class="fb" id="btnOutdent"  title="Outdent (⇧Tab)">⇤</button>
+      <div class="fsep"></div>
+
+      <!-- Checkbox — circle icon to match the circular checkbox style -->
+      <button class="fb" id="btnCheckbox" title="Add To-do  (select text first to bulk-convert)">
+        <svg width="13" height="13" viewBox="0 0 13 13">
+          <circle cx="6.5" cy="6.5" r="5.2" stroke="currentColor" stroke-width="1.4" fill="none"/>
+          <polyline points="3.8,6.8 5.8,9 9.2,4.2" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="fsep"></div>
+
+      <!-- Text colour dot -->
+      <div class="colorbtn" id="textColorDot" title="Text color">
+        <input type="color" id="textColorPicker" value="#CDD6F4">
+      </div>
+    </div>
+
+  </div><!-- #chrome -->
+
+  <!-- ── Checklist progress bar ──────────────────────────────── -->
+  <div id="progress">
+    <div id="progTrack"><div id="progFill"></div></div>
+    <span id="progText">0 / 0</span>
+  </div>
+
+  <!-- ── Editable content ────────────────────────────────────── -->
+  <div id="content" contenteditable="true" spellcheck="true"></div>
+
+  <!-- Lock click-shield (prevents edits when locked) -->
+  <div id="lockOverlay"></div>
+
+  <!-- ── Status bar ──────────────────────────────────────────── -->
+  <div id="statusBar">
+    <span id="wordCount">0w · 0c</span>
+  </div>
+
+  <!-- ── Settings panel ──────────────────────────────────────── -->
+  <div id="settingsPanel">
+
+    <!-- Background -->
+    <div class="sr">
+      <span class="sl">Background</span>
+      <div class="sw" id="bgSwatch"><input type="color" id="bgPicker" value="#1E1E2E"></div>
+      <div class="chips" id="chips">
+        <div class="chip on"  data-c="#1E1E2E" style="background:#1E1E2E"                       title="Onyx"></div>
+        <div class="chip"     data-c="#2C3E50" style="background:#2C3E50"                       title="Midnight Blue"></div>
+        <div class="chip"     data-c="#1a1a2e" style="background:#1a1a2e"                       title="Deep Night"></div>
+        <div class="chip"     data-c="#2d1b33" style="background:#2d1b33"                       title="Dark Plum"></div>
+        <div class="chip"     data-c="#FFF9C4" style="background:#FFF9C4;border:1px solid #e0d890" title="Lemon"></div>
+        <div class="chip"     data-c="#FFE0B2" style="background:#FFE0B2;border:1px solid #f0c080" title="Peach"></div>
+        <div class="chip"     data-c="#C8E6C9" style="background:#C8E6C9;border:1px solid #a0c8a0" title="Mint"></div>
+        <div class="chip"     data-c="#F5F5F5" style="background:#F5F5F5;border:1px solid #ddd"    title="White"></div>
+      </div>
+    </div>
+
+    <!-- Background opacity -->
+    <div class="sr">
+      <span class="sl">BG opacity</span>
+      <input type="range" id="bgAlphaSlider" min="0" max="1" value="1" step="0.05">
+      <input type="number" id="bgAlphaNum" min="0" max="100" value="100"
+             style="width:38px;text-align:center;border:1px solid var(--inp-brd);border-radius:4px;
+                    padding:2px 3px;font-size:11px;background:var(--inp-bg);color:var(--inp-clr);
+                    outline:none;-webkit-user-select:text;user-select:text;">
+      <span class="rv">%</span>
+    </div>
+
+    <!-- Roundness -->
+    <div class="sr">
+      <span class="sl">Roundness</span>
+      <input type="range" id="radiusSlider" min="0" max="28" value="12" step="1">
+      <span class="rv" id="radiusVal">12px</span>
+    </div>
+
+    <!-- Window opacity -->
+    <div class="sr">
+      <span class="sl">Win. opacity</span>
+      <input type="range" id="opacitySlider" min="0.1" max="1" value="1" step="0.05">
+      <input type="number" id="opacityNum" min="10" max="100" value="100"
+             style="width:38px;text-align:center;border:1px solid var(--inp-brd);border-radius:4px;
+                    padding:2px 3px;font-size:11px;background:var(--inp-bg);color:var(--inp-clr);
+                    outline:none;-webkit-user-select:text;user-select:text;">
+      <span class="rv">%</span>
+    </div>
+
+    <!-- Always on top -->
+    <div class="sr">
+      <span class="sl">Always on top</span>
+      <input type="checkbox" class="sc" id="aotCheck" checked>
+    </div>
+
+    <!-- Actions row -->
+    <div class="sr" style="gap:6px;padding-top:2px;flex-wrap:wrap">
+      <button class="set-btn" id="btnCopyMd"   title="Copy note as Markdown text">Copy as Markdown</button>
+      <button class="set-btn" id="btnDuplicate" title="Duplicate this note">Duplicate Note</button>
+    </div>
+
+  </div>
+
+</div><!-- #shell -->
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────
+let noteId   = null;
+let noteData = {};
+let saveTimer = null;
+let isCollapsed = false;
+let isLocked    = false;
+let bgAlpha     = 1;   // 0 = fully transparent background, 1 = fully opaque
+
+// ── DOM refs ───────────────────────────────────────────────────────
+const shell        = document.getElementById('shell');
+const chromeEl     = document.getElementById('chrome');
+const content      = document.getElementById('content');
+const titleInput   = document.getElementById('noteTitle');
+const settingsPanel= document.getElementById('settingsPanel');
+const bgPicker     = document.getElementById('bgPicker');
+const bgSwatch     = document.getElementById('bgSwatch');
+const txtPicker    = document.getElementById('textColorPicker');
+const txtColorDot  = document.getElementById('textColorDot');
+const radiusSlider = document.getElementById('radiusSlider');
+const radiusVal    = document.getElementById('radiusVal');
+const opacitySlider  = document.getElementById('opacitySlider');
+const opacityNum     = document.getElementById('opacityNum');
+const bgAlphaSlider  = document.getElementById('bgAlphaSlider');
+const bgAlphaNum     = document.getElementById('bgAlphaNum');
+const fontFamily   = document.getElementById('fontFamily');
+const fontSizeBox  = document.getElementById('fontSizeBox');
+const aotCheck     = document.getElementById('aotCheck');
+const progEl       = document.getElementById('progress');
+const progFill     = document.getElementById('progFill');
+const progText     = document.getElementById('progText');
+const wordCountEl  = document.getElementById('wordCount');
+const lockOverlay  = document.getElementById('lockOverlay');
+const collapseArrow= document.getElementById('collapseArrow');
+
+// ── Chrome focus/blur ──────────────────────────────────────────────
+let blurTimer = null;
+window.addEventListener('blur', () => {
+  blurTimer = setTimeout(() => {
+    chromeEl.classList.add('hidden');
+    settingsPanel.classList.remove('open');
+  }, 180);
+  document.body.classList.remove('focused');
+});
+window.addEventListener('focus', () => {
+  clearTimeout(blurTimer);
+  chromeEl.classList.remove('hidden');
+  document.body.classList.add('focused');
+});
+
+// ── Init ───────────────────────────────────────────────────────────
+window.stickyAPI.onInitNote((data) => {
+  noteId   = data.id;
+  noteData = { ...data };
+
+  titleInput.value = data.title || '';
+  if (data.content) content.innerHTML = data.content;
+
+  const bg    = data.bgColor      || '#1E1E2E';
+  const rad   = data.borderRadius ?? 12;
+  const font  = data.font         || 'Georgia, serif';
+  const fsize = data.fontSize     || 14;
+  const tclr  = data.textColor    || '#CDD6F4';
+  const opa   = data.opacity      ?? 1;
+
+  bgAlpha = data.bgAlpha ?? 1;   // must be set before applyBg
+  applyBg(bg); applyRadius(rad); applyFont(font);
+  applyFontSize(fsize); applyTextColor(tclr);
+
+  bgPicker.value        = bg;
+  bgSwatch.style.background = bg;
+  radiusSlider.value    = rad;
+  radiusVal.textContent = rad + 'px';
+  fontFamily.value      = font;
+  fontSizeBox.value     = fsize;
+  txtPicker.value       = tclr;
+  txtColorDot.style.background = tclr;
+  opacitySlider.value = opa;
+  opacityNum.value    = Math.round(opa * 100);
+  bgAlphaSlider.value = bgAlpha;
+  bgAlphaNum.value    = Math.round(bgAlpha * 100);
+  aotCheck.checked    = data.alwaysOnTop !== false;
+
+  // ── Migrate any old input[type=checkbox] to new three-state .cbi format ──
+  content.querySelectorAll('.cb input[type=checkbox]').forEach(input => {
+    const checked = input.hasAttribute('checked') || input.checked;
+    const row = input.closest('.cb');
+    if (!row) return;
+    row.dataset.state = checked ? '2' : '0';
+    const cbi = document.createElement('span');
+    cbi.className = 'cbi';
+    input.replaceWith(cbi);
+  });
+
+  if (data.collapsed) {
+    isCollapsed = true;
+    setCollapseIcon(true);
+  }
+
+  syncChips(bg);
+  updateProgress();
+  updateWordCount();
+});
+
+// ── Visual helpers ─────────────────────────────────────────────────
+function isDark(hex) {
+  if (!hex || hex[0] !== '#') return true;
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return (r*299+g*587+b*114)/1000 < 140;
+}
+function hexToRgba(hex, alpha) {
+  if (!hex || hex[0] !== '#') return hex;
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function applyBg(c) {
+  shell.style.background = hexToRgba(c, bgAlpha);
+  bgSwatch.style.background = c;   // swatch always shows solid colour for reference
+  isDark(c) ? shell.classList.remove('L') : shell.classList.add('L');
+}
+function applyRadius(r)   { shell.style.borderRadius = r + 'px'; }
+function applyFont(f)     { content.style.fontFamily = f; }
+function applyFontSize(s) { content.style.fontSize = s + 'px'; }
+function applyTextColor(c){ content.style.color = c; txtColorDot.style.background = c; }
+
+// ── Persist ────────────────────────────────────────────────────────
+function schedSave() { clearTimeout(saveTimer); saveTimer = setTimeout(persist, 400); }
+
+function persist() {
+  if (!noteId) return;
+  // data-state is already an attribute on .cb divs — persists naturally in innerHTML
+  noteData.content = content.innerHTML;
+  noteData.title   = titleInput.value;
+  window.stickyAPI.updateNote(noteId, { ...noteData });
+}
+
+// ── Format command ─────────────────────────────────────────────────
+function cmd(command, val=null) {
+  content.focus();
+  document.execCommand(command, false, val);
+  updateToolbarState();
+  schedSave();
+}
+function updateToolbarState() {
+  const t = (id,q) => document.getElementById(id)?.classList.toggle('active', document.queryCommandState(q));
+  t('btnBold','bold'); t('btnItalic','italic');
+  t('btnUnderline','underline'); t('btnStrike','strikeThrough');
+  t('btnAlignL','justifyLeft'); t('btnAlignC','justifyCenter'); t('btnAlignR','justifyRight');
+  t('btnBullet','insertUnorderedList'); t('btnNumbered','insertOrderedList');
+}
+
+// ── Toolbar wiring ─────────────────────────────────────────────────
+document.getElementById('btnBold')     .onclick = () => cmd('bold');
+document.getElementById('btnItalic')   .onclick = () => cmd('italic');
+document.getElementById('btnUnderline').onclick = () => cmd('underline');
+document.getElementById('btnStrike')   .onclick = () => cmd('strikeThrough');
+document.getElementById('btnAlignL')   .onclick = () => cmd('justifyLeft');
+document.getElementById('btnAlignC')   .onclick = () => cmd('justifyCenter');
+document.getElementById('btnAlignR')   .onclick = () => cmd('justifyRight');
+document.getElementById('btnBullet')   .onclick = () => cmd('insertUnorderedList');
+document.getElementById('btnNumbered') .onclick = () => cmd('insertOrderedList');
+document.getElementById('btnIndent')   .onclick = () => cmd('indent');
+document.getElementById('btnOutdent')  .onclick = () => cmd('outdent');
+
+fontFamily.onchange = e => { noteData.font = e.target.value; applyFont(e.target.value); schedSave(); };
+
+// ── Font size — save selection so it survives the input focus ──────
+// When user clicks the size box the content loses focus and selection is gone.
+// We snapshot the Range on content blur, then restore + apply on commit.
+let savedRange = null;
+content.addEventListener('blur', () => {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && content.contains(sel.anchorNode)) {
+    try { savedRange = sel.getRangeAt(0).cloneRange(); } catch(_) {}
+  }
+});
+
+function commitFontSize(sz) {
+  sz = Math.max(8, Math.min(96, parseInt(sz) || 14));
+  fontSizeBox.value  = sz;
+  noteData.fontSize  = sz;
+
+  // If a non-collapsed selection was saved, apply size to that text
+  if (savedRange && !savedRange.collapsed) {
+    try {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange.cloneRange());
+      // execCommand fontSize only accepts 1-7; use 7 as a marker then swap to px
+      document.execCommand('fontSize', false, '7');
+      content.querySelectorAll('font[size="7"]').forEach(el => {
+        el.removeAttribute('size');
+        el.style.fontSize = sz + 'px';
+      });
+    } catch(_) {}
+    savedRange = null;
+  }
+  // Always update the note-wide default size too
+  applyFontSize(sz);
+  content.focus();
+  schedSave();
+}
+
+fontSizeBox.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); commitFontSize(fontSizeBox.value); }
+});
+fontSizeBox.addEventListener('blur', () => commitFontSize(fontSizeBox.value));
+
+txtPicker.oninput = e => { noteData.textColor = e.target.value; applyTextColor(e.target.value); schedSave(); };
+
+content.addEventListener('input',   () => { schedSave(); updateWordCount(); });
+content.addEventListener('keyup',   updateToolbarState);
+content.addEventListener('mouseup', updateToolbarState);
+titleInput.addEventListener('input', schedSave);
+
+// ── Keyboard shortcuts ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key==='b') { e.preventDefault(); cmd('bold'); }
+  if (mod && e.key==='i') { e.preventDefault(); cmd('italic'); }
+  if (mod && e.key==='u') { e.preventDefault(); cmd('underline'); }
+  if (mod && e.key==='n') { e.preventDefault(); window.stickyAPI.newNote(); }
+});
+
+// Tab = indent / outdent
+content.addEventListener('keydown', e => {
+  if (isLocked) return;
+  if (e.key === 'Tab') { e.preventDefault(); cmd(e.shiftKey ? 'outdent' : 'indent'); }
+});
+
+// ── Checkbox: bulk-convert selection OR insert single ─────────────
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getClosestCbText(node) {
+  if (!node) return null;
+  if (node.nodeType === 3) node = node.parentElement;
+  return node?.closest?.('.cbt') || null;
+}
+
+// ── Build a new .cb row element (three-state format) ──────────────
+function makeCbRow(text='To-do item', state=0) {
+  const div = document.createElement('div');
+  div.className  = 'cb';
+  div.dataset.state = String(state);
+  div.innerHTML =
+    `<span class="cbi"></span>` +
+    `<span class="cbt" contenteditable="true">${esc(text)}</span>`;
+  return div;
+}
+
+function insertSingleCb() {
+  const uid = 'cb-' + Date.now();
+  const row = makeCbRow('To-do item', 0);
+  row.id = uid;
+  // insertHTML needs a string; build from outerHTML
+  document.execCommand('insertHTML', false, row.outerHTML);
+  const inserted = document.getElementById(uid);
+  if (inserted) {
+    const span = inserted.querySelector('.cbt');
+    if (span) {
+      const r = document.createRange();
+      r.selectNodeContents(span);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+  }
+  schedSave(); updateProgress();
+}
+
+document.getElementById('btnCheckbox').onclick = () => {
+  content.focus();
+  const sel  = window.getSelection();
+  const text = sel ? sel.toString().trim() : '';
+
+  if (!text) { insertSingleCb(); return; }
+
+  // ── Bulk convert: each non-empty line → one circular checkbox ─────
+  const frag = sel.getRangeAt(0).cloneContents();
+  const tmp  = document.createElement('div');
+  tmp.appendChild(frag);
+
+  const lines = [];
+  const push = t => { if (t.trim()) lines.push(t.trim()); };
+
+  const blocks = tmp.querySelectorAll('div,p,li,.cb,.cbt');
+  if (blocks.length > 0) {
+    blocks.forEach(b => {
+      const t = b.classList.contains('cbt') ? b.textContent
+              : b.querySelector('.cbt')?.textContent || b.textContent;
+      push(t);
+    });
+  } else {
+    text.split('\n').forEach(l => push(l));
+  }
+  if (lines.length === 0) text.split('\n').forEach(l => push(l));
+  if (lines.length === 0) { insertSingleCb(); return; }
+
+  const html = lines.map(l => makeCbRow(l, 0).outerHTML).join('');
+  document.execCommand('insertHTML', false, html);
+  schedSave(); updateProgress();
+};
+
+// ── Three-state cycle: click .cbi to advance state 0→1→2→0 ───────
+content.addEventListener('click', e => {
+  if (isLocked) return;
+  const cbi = e.target.closest('.cbi');
+  if (!cbi) return;
+  const row = cbi.closest('.cb');
+  if (!row) return;
+  const cur = parseInt(row.dataset.state || '0');
+  row.dataset.state = String((cur + 1) % 3);
+  schedSave(); updateProgress();
+});
+
+// ── Auto-continue checkbox on Enter ───────────────────────────────
+content.addEventListener('keydown', e => {
+  if (isLocked) return;
+  if (e.key !== 'Enter') return;
+
+  const sel = window.getSelection();
+  if (!sel || !sel.anchorNode) return;
+  const cbt = getClosestCbText(sel.anchorNode);
+  if (!cbt) return;
+
+  e.preventDefault();
+  const cbRow = cbt.closest('.cb');
+  const empty = cbt.textContent.trim() === '';
+
+  if (empty && cbRow) {
+    // Empty item → exit checkbox mode
+    const div = document.createElement('div');
+    div.innerHTML = '<br>';
+    cbRow.replaceWith(div);
+    const r = document.createRange();
+    r.selectNodeContents(div); r.collapse(false);
+    sel.removeAllRanges(); sel.addRange(r);
+  } else if (cbRow) {
+    // Non-empty → new checkbox below (inherits same state = 0 fresh)
+    const newRow = makeCbRow('', 0);
+    newRow.querySelector('.cbt').innerHTML = '<br>';
+    cbRow.after(newRow);
+    const span = newRow.querySelector('.cbt');
+    const r = document.createRange();
+    r.setStart(span, 0); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+  }
+  schedSave(); updateProgress();
+});
+
+// ── Progress bar — two-tone B&W: solid = done, dim = in-progress ──
+function updateProgress() {
+  const all   = Array.from(content.querySelectorAll('.cb'));
+  const total = all.length;
+  if (total === 0) { progEl.classList.remove('show'); return; }
+
+  const done = all.filter(r => r.dataset.state === '2').length;
+  const inPr = all.filter(r => r.dataset.state === '1').length;
+
+  progEl.classList.add('show');
+
+  const donePct = (done / total) * 100;
+  const inPrPct = (inPr / total) * 100;
+  const fillPct = donePct + inPrPct;
+
+  progFill.style.width = fillPct + '%';
+
+  // B&W palette — adapt to light vs dark background
+  const light   = shell.classList.contains('L');
+  const colDone = light ? 'rgba(0,0,0,.78)'  : 'rgba(255,255,255,.85)';
+  const colInPr = light ? 'rgba(0,0,0,.32)'  : 'rgba(255,255,255,.38)';
+
+  if (done > 0 && inPr > 0) {
+    const split = (donePct / fillPct) * 100;
+    progFill.style.background =
+      `linear-gradient(to right, ${colDone} ${split}%, ${colInPr} ${split}%)`;
+  } else if (inPr > 0) {
+    progFill.style.background = colInPr;
+  } else {
+    progFill.style.background = colDone;
+  }
+
+  if (done === total && total > 0) {
+    progText.textContent = '✓ All done!';
+  } else if (inPr > 0) {
+    progText.textContent = `${done}/${total}  ·  ${inPr} ⏳`;
+  } else {
+    progText.textContent = `${done} / ${total}`;
+  }
+}
+
+// ── Word count ─────────────────────────────────────────────────────
+function updateWordCount() {
+  const raw   = content.innerText || '';
+  const words = raw.trim() ? raw.trim().split(/\s+/).length : 0;
+  const chars = raw.replace(/\s/g,'').length;
+  wordCountEl.textContent = words + 'w · ' + chars + 'c';
+}
+
+// ── Settings panel ─────────────────────────────────────────────────
+document.getElementById('btnSettings').onclick = () => settingsPanel.classList.toggle('open');
+
+bgPicker.oninput = e => {
+  const c = e.target.value;
+  noteData.bgColor = c; applyBg(c); syncChips(c); schedSave();
+};
+
+document.getElementById('chips').querySelectorAll('.chip').forEach(chip => {
+  chip.onclick = () => {
+    const c = chip.dataset.c;
+    bgPicker.value = c; noteData.bgColor = c; applyBg(c); syncChips(c); schedSave();
+  };
+});
+function syncChips(color) {
+  document.getElementById('chips').querySelectorAll('.chip').forEach(c =>
+    c.classList.toggle('on', c.dataset.c.toLowerCase() === color.toLowerCase())
+  );
+}
+
+radiusSlider.oninput = e => {
+  const v = parseInt(e.target.value);
+  noteData.borderRadius = v; applyRadius(v);
+  radiusVal.textContent = v + 'px'; schedSave();
+};
+
+function applyBgAlpha(v) {
+  v = Math.max(0, Math.min(1, v));
+  bgAlpha = v;
+  noteData.bgAlpha    = v;
+  bgAlphaSlider.value = v;
+  bgAlphaNum.value    = Math.round(v * 100);
+  applyBg(noteData.bgColor || '#1E1E2E');
+  schedSave();
+}
+bgAlphaSlider.oninput = e => applyBgAlpha(parseFloat(e.target.value));
+bgAlphaNum.addEventListener('change', e => {
+  const pct = Math.max(0, Math.min(100, parseInt(e.target.value) ?? 100));
+  bgAlphaNum.value = pct;
+  applyBgAlpha(pct / 100);
+});
+bgAlphaNum.addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+
+function applyOpacity(v) {
+  v = Math.max(0.1, Math.min(1, v));
+  noteData.opacity = v;
+  opacitySlider.value = v;
+  opacityNum.value    = Math.round(v * 100);
+  window.stickyAPI.setOpacity(noteId, v);
+}
+opacitySlider.oninput = e => applyOpacity(parseFloat(e.target.value));
+opacityNum.addEventListener('change', e => {
+  const pct = Math.max(10, Math.min(100, parseInt(e.target.value) || 100));
+  opacityNum.value = pct;
+  applyOpacity(pct / 100);
+});
+opacityNum.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.target.blur(); }
+});
+
+aotCheck.onchange = e => {
+  noteData.alwaysOnTop = e.target.checked;
+  window.stickyAPI.setAlwaysOnTop(noteId, e.target.checked);
+};
+
+// Copy as Markdown
+document.getElementById('btnCopyMd').onclick = function() {
+  const md = toMarkdown(content);
+  navigator.clipboard.writeText(md).then(() => {
+    this.textContent = '✓ Copied!';
+    this.classList.add('success');
+    setTimeout(() => { this.textContent = 'Copy as Markdown'; this.classList.remove('success'); }, 1800);
+  });
+};
+
+function toMarkdown(el) {
+  let out = '';
+  function walk(node) {
+    if (node.nodeType === 3) { out += node.textContent; return; }
+    const tag = node.tagName?.toLowerCase();
+    if (node.classList?.contains('cb')) {
+      const state = node.dataset?.state || '0';
+      const text  = node.querySelector('.cbt')?.textContent || '';
+      const prefix = state === '2' ? '- [x] ' : state === '1' ? '- [~] ' : '- [ ] ';
+      out += prefix + text + '\n';
+      return;
+    }
+    if (tag === 'li')  { out += '- ' + node.textContent + '\n'; return; }
+    if (tag === 'b' || tag === 'strong') { out += '**'; node.childNodes.forEach(walk); out += '**'; return; }
+    if (tag === 'i' || tag === 'em')     { out += '_';  node.childNodes.forEach(walk); out += '_';  return; }
+    node.childNodes.forEach(walk);
+    if (['div','p'].includes(tag)) out += '\n';
+    if (tag === 'br')  out += '\n';
+  }
+  el.childNodes.forEach(walk);
+  return out.trim();
+}
+
+// Duplicate
+document.getElementById('btnDuplicate').onclick = () => window.stickyAPI.duplicateNote(noteId);
+
+// ── Collapse ───────────────────────────────────────────────────────
+function setCollapseIcon(collapsed) {
+  collapseArrow.setAttribute('points',
+    collapsed ? '1,8 5.5,3 10,8' : '1,3 5.5,8 10,3'
+  );
+}
+document.getElementById('btnCollapse').onclick = () => {
+  isCollapsed = !isCollapsed;
+  setCollapseIcon(isCollapsed);
+  window.stickyAPI.setCollapsed(noteId, isCollapsed);
+  noteData.collapsed = isCollapsed;
+  if (isCollapsed) settingsPanel.classList.remove('open');
+  schedSave();
+};
+
+// ── Lock ───────────────────────────────────────────────────────────
+document.getElementById('btnLock').onclick = () => {
+  isLocked = !isLocked;
+  content.contentEditable = isLocked ? 'false' : 'true';
+  lockOverlay.classList.toggle('on', isLocked);
+  document.getElementById('btnLock').classList.toggle('locked', isLocked);
+  document.getElementById('formatBar').style.opacity       = isLocked ? '0.35' : '';
+  document.getElementById('formatBar').style.pointerEvents = isLocked ? 'none'  : '';
+};
+
+// ── Title bar buttons ──────────────────────────────────────────────
+document.getElementById('btnNew')  .onclick = () => window.stickyAPI.newNote();
+document.getElementById('btnClose').onclick = () => { persist(); window.stickyAPI.deleteNote(noteId); };
+
+// Prevent drag interference
+content.addEventListener('dragover', e => e.preventDefault());
+content.addEventListener('drop',     e => e.preventDefault());
+</script>
+</body>
+</html>

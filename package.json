@@ -1,0 +1,15 @@
+{
+  "name": "free-stickies",
+  "version": "1.0.0",
+  "description": "Free unlimited sticky notes for macOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^28.3.3"
+  },
+  "devDependencies": {
+    "@electron/packager": "^19.1.0"
+  }
+}
