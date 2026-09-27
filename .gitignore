@@ -1,0 +1,26 @@
+# Dependencies — run `npm install` to restore
+node_modules/
+
+# Build outputs
+dist/
+out/
+*.dmg
+*.app
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local note data — never commit personal notes
+free-stickies-notes.json

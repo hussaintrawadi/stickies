@@ -1,14 +1,16 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-#  FreeStickies — Production DMG Builder
-#  Run this once on your Mac to produce a shareable FreeStickies.dmg
+#  FreeStickies: DMG builder
+#  From the repository root:  npm install && ./build-dmg.sh
+#  Produces dist/FreeStickies.app and a shareable dist/FreeStickies.dmg
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
-STICKIES="$(cd "$(dirname "$0")" && pwd)"
-SRC="$STICKIES/FreeStickies"
-APP="$STICKIES/FreeStickies.app"
-DMG="$STICKIES/FreeStickies.dmg"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+SRC="$ROOT"
+OUT="$ROOT/dist"
+APP="$OUT/FreeStickies.app"
+DMG="$OUT/FreeStickies.dmg"
 ELECTRON_APP="$SRC/node_modules/electron/dist/Electron.app"
 ICNS="$SRC/icon.png"            # used as fallback; we keep electron.icns in place
 BG="$SRC/dmg_background.png"
@@ -21,13 +23,14 @@ echo ""
 
 # ── Guard: make sure Electron is installed ────────────────────────────
 if [ ! -d "$ELECTRON_APP" ]; then
-  echo "  ✗  Electron not found. Run:  cd FreeStickies && npm install"
+  echo "  ✗  Electron not found. Run:  npm install"
   exit 1
 fi
 
 # ── 1. Clean ──────────────────────────────────────────────────────────
 echo "  ▸  Cleaning previous build..."
 rm -rf "$APP" "$DMG"
+mkdir -p "$OUT"
 
 # ── 2. Copy Electron.app as base ─────────────────────────────────────
 echo "  ▸  Copying Electron base..."

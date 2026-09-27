@@ -1,11 +1,21 @@
 {
   "name": "free-stickies",
   "version": "1.0.0",
-  "description": "Free unlimited sticky notes for macOS",
+  "description": "Free, offline sticky notes for macOS that float on your desktop",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "./build-dmg.sh"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hussaintrawadi/stickies.git"
+  },
+  "homepage": "https://github.com/hussaintrawadi/stickies#readme",
+  "bugs": "https://github.com/hussaintrawadi/stickies/issues",
+  "author": "Hussain Trawadi",
+  "license": "MIT",
+  "keywords": ["sticky-notes", "macos", "electron", "notes", "offline", "menu-bar"],
   "dependencies": {
     "electron": "^28.3.3"
   },
