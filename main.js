@@ -105,15 +105,13 @@ function createNoteWindow(noteData = {}) {
 
 // ── Tray ──────────────────────────────────────────────────────────────────
 function makeTrayIcon() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-    <rect x="2" y="2" width="18" height="18" rx="3" fill="#FFD600"/>
-    <rect x="5" y="6"  width="12" height="2" rx="1" fill="#555"/>
-    <rect x="5" y="10" width="12" height="2" rx="1" fill="#555"/>
-    <rect x="5" y="14" width="8"  height="2" rx="1" fill="#555"/>
-  </svg>`;
-  return nativeImage.createFromDataURL(
-    'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64')
-  );
+  // 44×44 PNG at scaleFactor 2 → crisp 22×22 on retina menu bar.
+  // Sticky note silhouette: body + folded top-right corner + 3 staggered lines.
+  // setTemplateImage(true) → macOS makes it white on dark / black on light bar.
+  const b64 = 'iVBORw0KGgoAAAANSUhEUgAAACwAAAAsCAYAAAAehFoBAAAAtUlEQVR4nO2YQQ6AIAwEi/H/X64XD2qAbKmlGHfOQodNKYkihBDSo1gXqKq6CpZirnlbj37oFa0WH5A3C3sTeh7cut9mKeKV7e2NAglHcD28RTpNWGRMOlVYxC69x+q0qckhdyQ94StLJtxKEe3hYeGsF2+plkAYTjjiEUH4XMIUjmb6lPD2/n8S5pQAoXA006bEWz3/n4Q5JUAoHA2Fl0FPsvc2j7UoaZTp/4erEkkznRACcAAVwFQ/JvL4cQAAAABJRU5ErkJggg==';
+  const img = nativeImage.createFromBuffer(Buffer.from(b64, 'base64'), { scaleFactor: 2.0 });
+  img.setTemplateImage(true);
+  return img;
 }
 
 function rebuildTrayMenu() {
@@ -205,7 +203,7 @@ app.whenReady().then(() => {
   tray = new Tray(makeTrayIcon());
   tray.setToolTip('Free Stickies');
   rebuildTrayMenu();
-  tray.on('click', () => createNoteWindow());
+  tray.on('click', () => tray.popUpContextMenu());
 
   const saved = loadNotes();
   if (saved.length === 0) createNoteWindow();

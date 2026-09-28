@@ -10,6 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/macOS-Electron-black.svg" alt="macOS, built with Electron">
   <img src="https://img.shields.io/badge/data-100%25%20offline-0ea5e9.svg" alt="100% offline">
+  <a href="https://claude.com/claude-code"><img src="https://img.shields.io/badge/vibe%20coded%20with-Claude-D97757.svg" alt="Vibe coded with Claude"></a>
 </p>
 
 <p align="center">
@@ -21,7 +22,7 @@
 The sticky-note apps I tried wanted a monthly subscription for something this simple. So I
 built one that costs nothing, needs no account, and keeps every note on your Mac.
 
-FreeStickies was built entirely with [Claude](https://claude.ai), without writing code by hand.
+FreeStickies is vibe coded with [Claude](https://claude.com/claude-code). Not a line of it was written by hand.
 
 ## Features
 
@@ -52,7 +53,14 @@ FreeStickies was built entirely with [Claude](https://claude.ai), without writin
 
 ## Install
 
-Build the app on your Mac:
+1. Download **FreeStickies.dmg** from the [latest release](https://github.com/hussaintrawadi/stickies/releases/latest).
+   It runs on Apple Silicon Macs (M1 and later).
+2. Open it and drag **FreeStickies** to Applications.
+3. The first time you open it, macOS says it cannot check the app for malware, because it is not
+notarised by Apple. Open **System Settings → Privacy & Security**, scroll down, and click
+**Open Anyway**. You only do this once.
+
+### Build it yourself
 
 ```bash
 git clone https://github.com/hussaintrawadi/stickies.git
@@ -61,10 +69,8 @@ npm install
 npm run dist
 ```
 
-That creates `dist/FreeStickies.dmg`. Open it and drag **FreeStickies** to Applications. The
-build is signed ad hoc, so on first launch right-click the app and choose **Open**.
-
-To try it without building, run `npm start`.
+That creates `dist/FreeStickies.dmg`, with the app icon made from `icon.png`. On an Intel Mac,
+this builds an Intel version. To try it without building, run `npm start`.
 
 ## Where your notes live
 
@@ -96,4 +102,4 @@ runtime dependency, Electron, and that is on purpose.
 
 ## License
 
-[MIT](LICENSE). Built by [Hussain Trawadi](https://github.com/hussaintrawadi).
+[MIT](LICENSE). Built by [Hussain Trawadi](https://github.com/hussaintrawadi), vibe coded with [Claude](https://claude.com/claude-code).

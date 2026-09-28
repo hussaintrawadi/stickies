@@ -12,7 +12,7 @@ OUT="$ROOT/dist"
 APP="$OUT/FreeStickies.app"
 DMG="$OUT/FreeStickies.dmg"
 ELECTRON_APP="$SRC/node_modules/electron/dist/Electron.app"
-ICNS="$SRC/icon.png"            # used as fallback; we keep electron.icns in place
+ICNS="$SRC/icon.png"            # turned into the app icon in step 4b
 BG="$SRC/dmg_background.png"
 
 echo ""
@@ -47,6 +47,17 @@ cp "$SRC/main.js"      "$APP/Contents/Resources/app/"
 cp "$SRC/preload.js"   "$APP/Contents/Resources/app/"
 cp "$SRC/note.html"    "$APP/Contents/Resources/app/"
 cp "$SRC/package.json" "$APP/Contents/Resources/app/"
+
+# ── 4b. App icon from icon.png ────────────────────────────────────────
+echo "  ▸  Making the app icon..."
+ICONSET="$(mktemp -d)/FreeStickies.iconset"
+mkdir -p "$ICONSET"
+for SIZE in 16 32 128 256 512; do
+  sips -z $SIZE $SIZE "$ICNS" --out "$ICONSET/icon_${SIZE}x${SIZE}.png" > /dev/null
+  sips -z $((SIZE * 2)) $((SIZE * 2)) "$ICNS" --out "$ICONSET/icon_${SIZE}x${SIZE}@2x.png" > /dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/electron.icns"
+rm -rf "$(dirname "$ICONSET")"
 
 # ── 5. Write Info.plist ───────────────────────────────────────────────
 echo "  ▸  Writing Info.plist..."
@@ -91,8 +102,11 @@ MOUNT_DIR="$(mktemp -d)"
 hdiutil attach "$WORK_DMG" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
 
 # ── 9. Set window layout via AppleScript ─────────────────────────────
+# Finder may ask for permission the first time. Set SKIP_DMG_STYLE=1 to skip
+# this step; the DMG still works, just without the custom window layout.
+if [ "${SKIP_DMG_STYLE:-0}" != "1" ]; then
 echo "  ▸  Styling DMG window..."
-osascript << APPLESCRIPT
+osascript << APPLESCRIPT || echo "  !  Could not style the DMG window, continuing without it"
 tell application "Finder"
   tell disk "FreeStickies"
     open
@@ -114,6 +128,7 @@ tell application "Finder"
   end tell
 end tell
 APPLESCRIPT
+fi
 
 # ── 10. Unmount and convert to compressed read-only DMG ───────────────
 echo "  ▸  Compressing DMG..."
